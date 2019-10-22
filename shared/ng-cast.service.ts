@@ -1,4 +1,4 @@
-import { NgControlStatus } from '@angular/forms/src/directives';
+import { NgControlStatus } from '@angular/forms';
 import { Injectable } from '@angular/core';
 
 import { Subject } from 'rxjs';

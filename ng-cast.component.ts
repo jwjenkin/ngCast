@@ -33,7 +33,7 @@ export class NgCastComponent implements OnInit {
   }
 
   openSession() {
-    this.ngCastService.discoverDevices();
+    this.ngCastService.discoverDevices$();
   }
 
   closeSession() {
