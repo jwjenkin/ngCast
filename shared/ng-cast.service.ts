@@ -1,7 +1,7 @@
 import { NgControlStatus } from '@angular/forms/src/directives';
 import { Injectable } from '@angular/core';
 
-import { Subject } from 'rxjs/Subject';
+import { Subject } from 'rxjs';
 
 @Injectable()
 export class NgCastService {
@@ -33,7 +33,7 @@ export class NgCastService {
 
   discoverDevices = function () {
     let self = this;
-    let subj = new Subject();
+    const subj = new Subject();
     this.cast.requestSession(function (s) {
       self.session = s;
       self.setCasting(true);
