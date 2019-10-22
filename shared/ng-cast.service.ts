@@ -1,12 +1,14 @@
 import { NgControlStatus } from '@angular/forms';
 import { Injectable } from '@angular/core';
 
-import { Subject } from 'rxjs';
+import { Observable, ReplaySubject, Subject, throwError } from 'rxjs';
+import { map, switchMap, take } from 'rxjs/operators';
 
 @Injectable()
 export class NgCastService {
+  private cast$: ReplaySubject<boolean> = new ReplaySubject(1);
   private castSession;
-  private cast;
+  private discoveringDevices: boolean = false;
   private session: any;
   private currentMedia: any;
 
@@ -14,51 +16,78 @@ export class NgCastService {
     casting: false
   };
 
-  constructor() {}
+  constructor() {
+    const cast = !!(window['chrome'] || {}).cast;
+    !!cast ? this.cast$.next(cast) : this.cast$.error({ message: 'Cast not avaible' });
+  }
 
   public initializeCastApi() {
-    this.cast = window['chrome'].cast;
-    let sessionRequest = new this.cast.SessionRequest(this.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID);
-    let apiConfig = new this.cast.ApiConfig(sessionRequest,
-      (s: any) => { },
-      (status: number) => {
-        if (status === this.cast.ReceiverAvailability.AVAILABLE) {
+    this.cast$.pipe(take(1)).subscribe(
+      (cast: any) => {
+        const sessionRequest = new cast.SessionRequest(
+          cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
+        );
+        const apiConfig = new cast.ApiConfig(sessionRequest,
+          (s: any) => { },
+          (status: number) => {
+            if (status === cast.ReceiverAvailability.AVAILABLE) {
 
-        } // end if
-      }
-    );
-    let x = this.cast.initialize(apiConfig, this.onInitSuccess, this.onError);
+            } // end if
+          }
+        );
+        const x = cast.initialize(apiConfig, this.onInitSuccess, this.onError);
+      },
+      console.error
+    )
   };
 
   public discoverDevices$() {
-    const subj = new Subject();
-    this.cast.requestSession((s: any) => {
-      this.session = s;
-      this.setCasting(true);
-      subj.next('CONNECTED');
-    }, (err: any) => {
-      this.setCasting(false);
-      if (err.code === 'cancel') {
-        this.session = null;
-        subj.next('CANCEL');
-      } else {
-        console.error('Error selecting a cast device', err);
-      }
-    });
-    return subj;
+    if ( this.discoveringDevices ) {
+      return throwError('Already discovering devices');
+    } // end if
+
+    this.discoveringDevices = true;
+    return this.cast$.pipe(
+      switchMap((cast: any) => {
+        const response: Subject<string> = new Subject();
+        cast.requestSession((s: any) => {
+          this.session = s;
+          this.setCasting(true);
+          response.next('CONNECTED');
+        }, (err: any) => {
+          this.setCasting(false);
+          if (err.code === 'cancel') {
+            this.session = null;
+            return response.next('CANCEL');
+          } // end if
+
+          response.error(`Error selecting a cast device: ${err.message}`);
+        });
+        return response;
+      })
+    );
   }
 
-  public launchMedia(media: any) {
-    let mediaInfo = new this.cast.media.MediaInfo(media);
-    let request = new this.cast.media.LoadRequest(mediaInfo);
-    console.log('launch media with session', this.session);
+  public launchMedia$(media: any) {
+    return this.cast$.pipe(
+      take(1),
+      map((cast: any) => {
+        let mediaInfo = new cast.media.MediaInfo(media);
+        let request = new cast.media.LoadRequest(mediaInfo);
+        console.log('launch media with session', this.session);
 
-    if (!this.session) {
-      window.open(media);
-      return false;
-    }
-    this.session.loadMedia(request, this.onMediaDiscovered.bind(this, 'loadMedia'), this.onMediaError);
-    return true;
+        if (!this.session) {
+          window.open(media);
+          return false;
+        }
+        this.session.loadMedia(
+          request,
+          this.onMediaDiscovered.bind(this, 'loadMedia'),
+          this.onMediaError
+        );
+        return true;
+      }),
+    );
   }
 
   public play() {
