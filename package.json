@@ -18,10 +18,10 @@
     "api",
     "angular"
   ],
-  "author": "Fabien Zibi",
+  "author": "jwjenkin",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/dahfazz/ngCast/issues"
+    "url": "https://github.com/jwjenkin/ngCast/issues"
   },
-  "homepage": "https://github.com/dahfazz/ngCast#readme"
+  "homepage": "https://github.com/jwjenkin/ngCast#readme"
 }
